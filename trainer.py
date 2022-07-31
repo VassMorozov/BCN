@@ -16,7 +16,7 @@ from bgm_block.loss_function import BGM_loss_function,BGM_cal_P_R
 
 
 class Trainer:
-    def __init__(self, num_blocks, num_layers, num_f_maps, dim, num_classes,dataset,device,use_lbp,num_soft_lbp):
+    def __init__(self, num_blocks, num_layers, num_f_maps, dim, num_classes,dataset,device,use_lbp,num_soft_lbp, gt_path, actions_dict):
         self.num_stages=num_blocks-1  # num_blocks = number of cascade stages + 1 fusion stage
         self.model = MultiStageModel(num_blocks, num_layers, num_f_maps, dim, num_classes) # ms-tcn model
         self.cascadeModel = CascadeModel(self.num_stages,num_layers, num_f_maps, dim, num_classes,dataset,device,use_lbp,num_soft_lbp) # our bcn model
@@ -25,6 +25,15 @@ class Trainer:
         self.nll=nn.NLLLoss(ignore_index=-100,reduction='none')   # for fusion stage
         self.mse = nn.MSELoss(reduction='none')
         self.num_classes = num_classes
+        
+        self.gt_path = gt_path
+        self.actions_dict = actions_dict
+        
+        self.train_loss = []
+        self.train_acc = []
+        
+        self.test_loss = []
+        self.test_acc = []
 
     def train_bcn(self, save_dir, data_loader,  num_epochs, learning_rate, device, date, num,checkpoint_path, results_dir, features_path,actions_dict, sample_rate, dataset,
                   vid_list_file_tst, ground_truth_path, split, use_lbp, bgm_result_path, pooling_length, num_post=4):
@@ -122,6 +131,9 @@ class Trainer:
                 epoch + 1, epoch_loss / len(data_loader), float(correct) / total, optimizer.param_groups[0]['lr']))
             num_iter=len(data_loader)-1
 
+            self.train_loss.append(epoch_loss / len(data_loader))
+            self.train_acc.append(float(correct) / total)
+            
             if (precision + recall) > 0:
                 f1_score = 2 * (precision / (num_iter + 1)) * (recall / (num_iter + 1)) / ((precision / (num_iter + 1)) + (recall / (num_iter + 1)))
                 print("BGM in training set: P=%.03f, R=%.03f, f1=%.3f" % (precision / (num_iter + 1), recall / (num_iter + 1), f1_score))
@@ -134,6 +146,7 @@ class Trainer:
 
             # statistics about testing data, used for selecting epochs
             self.cascadeModel.eval()
+            
             for i in range(len(list_of_vids_tst)):
                 vid = list_of_vids_tst[i]
                 input_x = all_test_feature[i]
@@ -176,8 +189,12 @@ class Trainer:
                 f_ptr.write("### Frame level recognition: ###\n")
                 f_ptr.write(' '.join(recognition))
                 f_ptr.close()
+                
+                
 
             test_acc, test_edit, test_f1 = eval_metric(dataset, list_of_vids_tst, ground_truth_path, results_dir + "/")
+            
+            self.test_acc.append(test_acc)
             writer.add_scalar('Test_Acc', test_acc, epoch)
             writer.add_scalar('Test_edit', test_edit, epoch)
             writer.add_scalar('Test_f1@10', test_f1[0], epoch)
@@ -201,6 +218,10 @@ class Trainer:
             file_ptr = open(vid_list_file, 'r')
             list_of_vids = file_ptr.read().split('\n')[:-1]
             file_ptr.close()
+            
+            epoch_loss = 0
+            total = 0
+            correct = 0
             for vid in list_of_vids:
                 print (vid)
                 features = np.load(features_path + vid.split('.')[0] + '.npy')
