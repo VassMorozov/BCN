@@ -170,7 +170,7 @@ class Trainer:
                 mask = torch.ones(input_x.size(), device=device)
                 
                 self.cascadeModel.eval()
-                predictions, _, adjust_weight = self.cascadeModel(input_x, gt_target=input_y, soft_threshold=0.8)
+                predictions, _, adjust_weight = self.cascadeModel(input_x, mask, gt_target=input_y, soft_threshold=0.8)
                 
                 balance_weight = [1.0]*self.num_stages
                 # num_stages is number of cascade stages
