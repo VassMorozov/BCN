@@ -167,7 +167,7 @@ class Trainer:
                 input_y.unsqueeze_(0)
                 input_y = input_y.to(device)
                 
-                mask = torch.ones(input_x.size(), device=device)
+                mask = torch.ones((input_x.size()[1],input_x.size()[0]), device=device)
                 
                 self.cascadeModel.eval()
                 predictions, _, adjust_weight = self.cascadeModel(input_x, mask, gt_target=input_y, soft_threshold=0.8)
