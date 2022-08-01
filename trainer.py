@@ -146,14 +146,51 @@ class Trainer:
 
             # statistics about testing data, used for selecting epochs
             self.cascadeModel.eval()
-            
+            epoch_loss = 0
             for i in range(len(list_of_vids_tst)):
+                
+                loss = 0
                 vid = list_of_vids_tst[i]
                 input_x = all_test_feature[i]
                 input_x = input_x.to(device)
+                
+                #adding this so that I can have loss for test data
+                file_ptr = open(self.gt_path + vid, 'r')
+                content = file_ptr.read().split('\n')[:-1]
+                classes = np.zeros(min(np.shape(features)[1], len(content)))
+                for i in range(len(classes)):
+                    classes[i] = self.actions_dict[content[i]]
+                    
+                classes = classes[::sample_rate]
+                input_y = torch.tensor(classes,dtype=torch.long)
+                
+                input_y.unsqueeze_(0)
+                input_y = input_y.to(device)
+                
                 mask = torch.ones(input_x.size(), device=device)
-                predictions, _, _ = self.cascadeModel(input_x, mask, gt_target=None, soft_threshold=0.8)
-                predictions=predictions[-1]
+                
+                self.cascadeModel.eval()
+                predictions, _, adjust_weight = self.cascadeModel(input_x, gt_target=input_y, soft_threshold=0.8)
+                
+                balance_weight = [1.0]*self.num_stages
+                # num_stages is number of cascade stages
+                for num_stage in range(self.num_stages):
+                    adjust_weight[num_stage].require_grad=False
+                    balance_weight[num_stage] = torch.mean(torch.sum(adjust_weight[0],2).view(-1).float() / torch.sum(adjust_weight[num_stage],2).view(-1).float())
+                    p = predictions[num_stage]
+                    loss += 1 * balance_weight[num_stage] * torch.mean(adjust_weight[num_stage].view(-1) * self.maskCE(p.transpose(2, 1).contiguous().view(-1, self.num_classes), input_y.view(-1)))
+                    loss += 0.3 * torch.mean(
+                        torch.clamp(self.mse(F.log_softmax(p[:, :, 1:], dim=1), F.log_softmax(p.detach()[:, :, :-1], dim=1)), min=0, max=8))
+                
+               # fusion stage
+                p = predictions[-1]
+                loss += torch.mean(self.nll(torch.log(p.transpose(2, 1).contiguous().view(-1, self.num_classes)), input_y.view(-1)))
+                loss += 0.5 * torch.mean(torch.clamp(
+                    self.mse(F.log_softmax(p[:, :, 1:], dim=1), F.log_softmax(p.detach()[:, :, :-1], dim=1)), min=0,
+                    max=8))
+                
+                epoch_loss += loss.item()
+                
                 if use_lbp and dataset != "gtea":
                     num_frames = np.shape(input_x)[2]
                     barrier_file = bgm_result_path + vid + ".csv"
@@ -193,7 +230,7 @@ class Trainer:
                 
 
             test_acc, test_edit, test_f1 = eval_metric(dataset, list_of_vids_tst, ground_truth_path, results_dir + "/")
-            
+            self.test_loss.append(epoch_loss / len(list_of_vids_tst))
             self.test_acc.append(test_acc)
             writer.add_scalar('Test_Acc', test_acc, epoch)
             writer.add_scalar('Test_edit', test_edit, epoch)
