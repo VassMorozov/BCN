@@ -191,6 +191,7 @@ class Trainer:
                 
                 epoch_loss += loss.item()
                 
+                predictions = predictions[-1]
                 if use_lbp and dataset != "gtea":
                     num_frames = np.shape(input_x)[2]
                     barrier_file = bgm_result_path + vid + ".csv"
