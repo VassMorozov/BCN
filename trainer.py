@@ -157,7 +157,7 @@ class Trainer:
                 #adding this so that I can have loss for test data
                 file_ptr = open(self.gt_path + vid, 'r')
                 content = file_ptr.read().split('\n')[:-1]
-                classes = np.zeros(min(np.shape(features)[1], len(content)))
+                classes = np.zeros(len(content))
                 for i in range(len(classes)):
                     classes[i] = self.actions_dict[content[i]]
                     
@@ -169,8 +169,7 @@ class Trainer:
                 
                 mask = torch.ones(input_x.size(), device=device)
                 
-                self.cascadeModel.eval()
-                predictions, _, adjust_weight = self.cascadeModel(input_x, mask, gt_target=input_y, soft_threshold=0.8)
+                predictions, _, adjust_weight = self.cascadeModel(input_x, mask, gt_target=None, soft_threshold=0.8)
                 
                 balance_weight = [1.0]*self.num_stages
                 # num_stages is number of cascade stages
