@@ -377,8 +377,9 @@ class Trainer:
                     num_frames = np.shape(features)[1]
                     barrier_file=bsn_result_path+vid+ ".csv"
                     barrier=np.array(pd.read_csv(barrier_file))
-                    temporal_scale=np.shape(barrier)[1]
                     barrier=np.transpose(barrier)
+                    temporal_scale=np.shape(barrier)[1]
+                    
                     barrier = torch.tensor(barrier, dtype=torch.float)  #size=[num_frames]
                     if temporal_scale<=num_frames:
                         interpolation = torch.round(torch.Tensor([float(num_frames) / temporal_scale * (i+0.5) for i in range(temporal_scale)])).long()
