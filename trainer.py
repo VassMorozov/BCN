@@ -419,3 +419,12 @@ class Trainer:
                 f_ptr.write("### Frame level recognition: ###\n")
                 f_ptr.write(' '.join(recognition))
                 f_ptr.close()
+                
+            acc, edit_result, f1_score =  eval_metric(dataset,list_of_vids,ground_truth_path,results_dir+"/")
+            eval = {}
+            eval["Acc"] = acc
+            eval["Edit"] = edit_result
+            eval["f1@10"] = f1_score[0]
+            eval["f1@25"] = f1_score[1]
+            eval["f1@50"] = f1_score[2]
+            return eval
