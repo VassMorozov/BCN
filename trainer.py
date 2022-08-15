@@ -381,7 +381,10 @@ class Trainer:
                     barrier=np.transpose(barrier)
                     barrier = torch.tensor(barrier, dtype=torch.float)  #size=[num_frames]
                     if temporal_scale<=num_frames:
-                        resize_barrier = F.interpolate(barrier, size=num_frames, mode='nearest')
+                        interpolation = torch.round(torch.Tensor([float(num_frames) / temporal_scale * (i+0.5) for i in range(temporal_scale)])).long()
+                        resize_barrier = torch.Tensor([0.0]*num_frames)
+                        resize_barrier[interpolation]= barrier[0]
+       
                     else:
                         resize_barrier=barrier
                     resize_barrier = resize_barrier.unsqueeze(0)
