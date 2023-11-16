@@ -9,6 +9,9 @@
 
 Aug, 2020 - We uploaded the code for 50salads, Breakfast and GTEA datasets, and the corresponding models for inference.
 
+Edited by VM
+Aug, 2022 - Updated to output performance metrics for experimental design for both training and validation samples.
+
 ### Dependencies
 
 1. Python 3.5
